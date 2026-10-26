@@ -30,16 +30,91 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
+
+
       - name: Download FFmpeg
         shell: pwsh
         run: |
-          $url = "https://raw.githubusercontent.com/${{ github.repository_owner }}/prerequisites/main/windows-x64/ffmpeg.exe"
+          $primary = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"
+          $fallback = "https://media.githubusercontent.com/media/${{ github.repository_owner }}/prerequisites/main/windows-x64/ffmpeg.exe"
 
-          curl.exe -fL --retry 2 -o ffmpeg.exe $url
+          $downloaded = $false
 
-          if ($LASTEXITCODE -ne 0 -or !(Test-Path "ffmpeg.exe") -or (Get-Item "ffmpeg.exe").Length -eq 0) {
-            throw "Failed to download ffmpeg.exe"
+          Remove-Item "ffmpeg.exe" -Force -ErrorAction SilentlyContinue
+          Remove-Item "ffmpeg.zip" -Force -ErrorAction SilentlyContinue
+          Remove-Item "ffmpeg-temp" -Recurse -Force -ErrorAction SilentlyContinue
+
+          # Primary: Gyan.dev official Windows build
+          Write-Host "Trying official Gyan.dev FFmpeg build..."
+
+          curl.exe -fL --retry 2 --retry-all-errors `
+            --connect-timeout 15 --max-time 300 `
+            -o ffmpeg.zip $primary
+
+          if ($LASTEXITCODE -eq 0 -and
+              (Test-Path "ffmpeg.zip") -and
+              (Get-Item "ffmpeg.zip").Length -gt 1MB) {
+
+            try {
+              Expand-Archive -Path "ffmpeg.zip" -DestinationPath "ffmpeg-temp" -Force
+
+              $binary = Get-ChildItem "ffmpeg-temp" -Filter "ffmpeg.exe" -Recurse |
+                Select-Object -First 1
+
+              if ($null -ne $binary) {
+                Copy-Item $binary.FullName "ffmpeg.exe" -Force
+
+                & .\ffmpeg.exe -version *> $null
+
+                if ($LASTEXITCODE -eq 0) {
+                  $downloaded = $true
+                  Write-Host "FFmpeg downloaded from Gyan.dev."
+                }
+              }
+            }
+            catch {
+              Write-Host "Official archive extraction or verification failed."
+            }
           }
+          else {
+            Write-Host "Official archive download failed."
+          }
+
+          # Secondary: GitHub LFS-hosted executable
+          if (!$downloaded) {
+            Write-Host "Trying GitHub LFS backup..."
+
+            Remove-Item "ffmpeg.exe" -Force -ErrorAction SilentlyContinue
+
+            curl.exe -fL --retry 2 --retry-all-errors `
+              --connect-timeout 15 --max-time 300 `
+              -o ffmpeg.exe $fallback
+
+            if ($LASTEXITCODE -eq 0 -and
+                (Test-Path "ffmpeg.exe") -and
+                (Get-Item "ffmpeg.exe").Length -gt 1MB) {
+
+              & .\ffmpeg.exe -version *> $null
+
+              if ($LASTEXITCODE -eq 0) {
+                $downloaded = $true
+                Write-Host "FFmpeg downloaded from GitHub LFS backup."
+              }
+            }
+          }
+
+          Remove-Item "ffmpeg.zip" -Force -ErrorAction SilentlyContinue
+          Remove-Item "ffmpeg-temp" -Recurse -Force -ErrorAction SilentlyContinue
+
+          if (!$downloaded) {
+            Remove-Item "ffmpeg.exe" -Force -ErrorAction SilentlyContinue
+            throw "Failed to download a valid FFmpeg executable from both sources."
+          }
+
+          Write-Host "FFmpeg is ready."
+          Get-Item "ffmpeg.exe" | Select-Object Name, Length
+          .\ffmpeg.exe -version
+
 
 
       - name: Download latest yt-dlp
@@ -87,7 +162,7 @@ jobs:
             Select-Object -First 1
   
           if (-not $app) {
-            throw "snatchDL.exe was not found. Check your CMake target name and output path."
+            throw "snatchDL.exe was not found in build/ or build/Release/. Check your CMake target name and output path."
           }
   
           New-Item -ItemType Directory -Force -Path "package/data/others" | Out-Null
@@ -117,6 +192,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
-
-
-    
