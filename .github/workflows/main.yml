@@ -33,7 +33,7 @@ jobs:
       - name: Download FFmpeg
         shell: pwsh
         run: |
-          $url = "https://raw.githubusercontent.com/${{ github.repository_owner }}/prerequisite/main/windows-x64/ffmpeg.exe"
+          $url = "https://raw.githubusercontent.com/${{ github.repository_owner }}/prerequisites/main/windows-x64/ffmpeg.exe"
 
           curl.exe -fL --retry 2 -o ffmpeg.exe $url
 
@@ -46,7 +46,7 @@ jobs:
         shell: pwsh
         run: |
           $url = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe"
-          $fallback = "https://raw.githubusercontent.com/${{ github.repository_owner }}/prerequisite/main/windows-x64/yt-dlp.exe"
+          $fallback = "https://raw.githubusercontent.com/${{ github.repository_owner }}/prerequisites/main/windows-x64/yt-dlp.exe"
   
           Write-Host "Trying official yt-dlp download..."
   
