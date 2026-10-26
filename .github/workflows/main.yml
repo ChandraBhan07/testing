@@ -72,16 +72,14 @@ jobs:
         with:
           name: bundle
           path: |
-            build/snatchDL.exe
-            build/Release/snatchDL.exe
+            snatchDL.exe
           if-no-files-found: warn
 
       - name: Prepare package
         shell: pwsh
         run: |
           $candidates = @(
-            "build/snatchDL.exe",
-            "build/Release/snatchDL.exe"
+            "snatchDL.exe"
           )
   
           $app = $candidates |
@@ -89,7 +87,7 @@ jobs:
             Select-Object -First 1
   
           if (-not $app) {
-            throw "snatchDL.exe was not found in build/ or build/Release/. Check your CMake target name and output path."
+            throw "snatchDL.exe was not found. Check your CMake target name and output path."
           }
   
           New-Item -ItemType Directory -Force -Path "package/data/others" | Out-Null
@@ -119,3 +117,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
 
+
+
+    
